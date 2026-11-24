@@ -2,9 +2,12 @@
 
 [日本語](README.md)
 
-Space drag and space turn for the **Steam Frame**, running natively on the headset (Linux ARM64, SteamVR on the Frame).
+Space drag and space turn for the **Steam Frame**.
 Grab the space with a controller button to move or turn yourself, like OpenVR Advanced Settings' space drag, with
 optional gravity. Settings live in a SteamVR dashboard tab.
+
+It works as a SteamVR driver, so the playspace resets the Steam Frame does from time to time do not affect it: where
+you moved to stays where it is.
 
 This app is vibe coded.
 
