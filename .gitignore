@@ -1,0 +1,6 @@
+build/
+backups/
+*.png
+!data/*.png
+!docs/*.png
+dist/

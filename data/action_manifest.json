@@ -1,0 +1,53 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "frame_controller",
+      "binding_url": "bindings/frame_controller.json"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/space",
+      "usage": "leftright"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/space/in/drag",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/space/in/turn",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/space/in/reset",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/space/out/haptic",
+      "type": "vibration"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/space": "Frame Space Settings",
+      "/actions/space/in/drag": "Space drag (while held)",
+      "/actions/space/in/turn": "Space turn (while held)",
+      "/actions/space/in/reset": "Position reset",
+      "/actions/space/out/haptic": "Vibration"
+    },
+    {
+      "language_tag": "ja_JP",
+      "/actions/space": "Frame Space Settings",
+      "/actions/space/in/drag": "スペースドラッグ（押している間）",
+      "/actions/space/in/turn": "スペースターン（押している間）",
+      "/actions/space/in/reset": "位置リセット",
+      "/actions/space/out/haptic": "コントローラの振動"
+    }
+  ]
+}

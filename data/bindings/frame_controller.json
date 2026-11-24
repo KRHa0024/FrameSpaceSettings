@@ -1,0 +1,79 @@
+{
+  "action_manifest_version": 0,
+  "app_key": "dev.krha.framespacesettings",
+  "category": "steamvr_input",
+  "controller_type": "frame_controller",
+  "name": "Frame Space Settings default",
+  "description": "Default bindings for Frame Space Settings",
+  "options": {},
+  "simulated_actions": [],
+  "alias_info": {},
+  "bindings": {
+    "/actions/space": {
+      "sources": [
+        {
+          "path": "/user/hand/left/input/dpad_right",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/space/in/drag"
+            }
+          },
+          "parameters": {}
+        },
+        {
+          "path": "/user/hand/right/input/x",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/space/in/drag"
+            }
+          },
+          "parameters": {}
+        },
+        {
+          "path": "/user/hand/left/input/dpad_down",
+          "mode": "button",
+          "inputs": {
+            "double": {
+              "output": "/actions/space/in/turn"
+            }
+          },
+          "parameters": {}
+        },
+        {
+          "path": "/user/hand/right/input/a",
+          "mode": "button",
+          "inputs": {
+            "double": {
+              "output": "/actions/space/in/turn"
+            }
+          },
+          "parameters": {}
+        },
+        {
+          "path": "/user/hand/left/input/thumbstick",
+          "mode": "button",
+          "inputs": {
+            "double": {
+              "output": "/actions/space/in/reset"
+            }
+          },
+          "parameters": {}
+        }
+      ],
+      "haptics": [
+        {
+          "output": "/actions/space/out/haptic",
+          "path": "/user/hand/left/output/haptic"
+        },
+        {
+          "output": "/actions/space/out/haptic",
+          "path": "/user/hand/right/output/haptic"
+        }
+      ],
+      "poses": [],
+      "skeleton": []
+    }
+  }
+}
