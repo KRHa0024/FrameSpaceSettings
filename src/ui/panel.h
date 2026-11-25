@@ -52,6 +52,9 @@ enum class Act
 	GainPlus,
 	DragLeft,
 	DragRight,
+	LockX, // space drag axis locks
+	LockY,
+	LockZ,
 	SnapTurn,
 	SnapMinus,
 	SnapPlus,

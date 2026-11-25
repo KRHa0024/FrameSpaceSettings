@@ -217,6 +217,7 @@ int main( int argc, char **argv )
 		m.off.Translate( { 0.31, -0.30, 0.25 } );
 		m.off.yaw = 45 * M_PI / 180;
 		m.settings.snapTurn = true;
+		m.settings.lockX = m.settings.lockZ = true; // up and down only
 		// Arguments after FILE and the language only pick a sample state: a 3rd turns gravity on (and hovers space turn),
 		// a 4th also shows the missing-driver warning strip.
 		m.settings.gravity = argc > 4;

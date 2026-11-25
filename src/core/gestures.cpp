@@ -1,7 +1,14 @@
 #include "gestures.h"
 
-bool DragGesture::Update( bool held, bool valid, Vec3 hand, double gain, Offset &off, double now )
+bool DragGesture::Update( bool held, bool valid, Vec3 hand, double gain, Offset &off, double now, AxisLock lock, double heading )
 {
+	if ( !held )
+		m_hasHeading = false; // the next press takes the head's heading again
+	else if ( !m_hasHeading && std::isfinite( heading ) )
+	{
+		m_heading = heading;
+		m_hasHeading = true;
+	}
 	if ( !held || !valid )
 	{
 		if ( m_active && !held )
@@ -14,7 +21,20 @@ bool DragGesture::Update( bool held, bool valid, Vec3 hand, double gain, Offset 
 	bool changed = false;
 	if ( m_active )
 	{
-		const Vec3 d = ( hand - m_last ) * gain;
+		Vec3 d = ( hand - m_last ) * gain;
+		if ( lock.Any() )
+		{
+			// In the frame the head faced: x across, z forward. A locked axis takes none of the hand's movement, and so none
+			// of the momentum either.
+			Vec3 l = RotateY( d, -m_heading );
+			if ( lock.x )
+				l.x = 0;
+			if ( lock.y )
+				l.y = 0;
+			if ( lock.z )
+				l.z = 0;
+			d = RotateY( l, m_heading );
+		}
 		const double dt = now - m_lastTime;
 		if ( dt > 1e-4 && dt < 0.2 )
 			m_vel = m_vel * 0.6 + d * ( 0.4 / dt ); // smoothed over the last few frames
@@ -48,8 +68,13 @@ bool GravityMotion::Airborne( const Offset &off, double g ) const
 	return m_vel.x != 0 || m_vel.y != 0 || m_vel.z != 0 || ( g > 0 && -off.t.y > 1e-4 );
 }
 
-bool GravityMotion::Step( Offset &off, double dt, double g )
+bool GravityMotion::Step( Offset &off, double dt, double g, bool holdHeight )
 {
+	if ( holdHeight )
+	{
+		m_vel.y = 0;
+		g = 0;
+	}
 	const double height = -off.t.y;
 	if ( height <= 1e-4 && m_vel.y >= 0 )
 	{

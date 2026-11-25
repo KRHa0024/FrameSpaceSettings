@@ -26,6 +26,9 @@ Mat34 Inverse( const Mat34 &a );
 // Rotation about +Y by `yaw` radians, then translation `t`. Positive yaw increases atan2(x, z).
 Mat34 YawTranslate( double yaw, Vec3 t );
 double YawOf( const Mat34 &a );
+// Which way a head pose faces, as atan2(x, z) of its horizontal forward (-Z). Only the heading: tilting or rolling the head
+// does not change it, and looking straight up or down still gives one (the top of the head points that way).
+double HeadingOf( const Mat34 &a );
 Vec3 RotateY( Vec3 v, double yaw );
 double WrapAngle( double a );
 

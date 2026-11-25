@@ -59,6 +59,7 @@ struct Tracked
 {
 	bool valid = false;
 	Vec3 pos;
+	double heading = 0; // HeadingOf the reported pose
 };
 
 Tracked ReadPose( TrackedDeviceIndex_t idx, const TrackedDevicePose_t *poses )
@@ -69,6 +70,11 @@ Tracked ReadPose( TrackedDeviceIndex_t idx, const TrackedDevicePose_t *poses )
 	const TrackedDevicePose_t &p = poses[idx];
 	t.valid = p.bPoseIsValid && p.bDeviceIsConnected && p.eTrackingResult == TrackingResult_Running_OK;
 	t.pos = { p.mDeviceToAbsoluteTracking.m[0][3], p.mDeviceToAbsoluteTracking.m[1][3], p.mDeviceToAbsoluteTracking.m[2][3] };
+	Mat34 m;
+	for ( int r = 0; r < 3; r++ )
+		for ( int c = 0; c < 4; c++ )
+			m.m[r][c] = p.mDeviceToAbsoluteTracking.m[r][c];
+	t.heading = HeadingOf( m );
 	return t;
 }
 // Start time of the running vrserver (seconds since the epoch), or -1. The process is looked up again only when the
@@ -605,9 +611,13 @@ void App::HandleInput( const InputFrame &in, double now, double dt )
 
 	bool changed = false;
 	const double snap = m_settings.snapTurn ? m_settings.snapDegrees * kDegToRad : 0;
+	const AxisLock lock{ m_settings.lockX, m_settings.lockY, m_settings.lockZ };
+	// The hands are true positions, the head's rotation is as reported, which our move turned by -yaw: turn it back so the
+	// heading is in the hands' space.
+	const double heading = hmd.valid ? hmd.heading + m_off.yaw : NAN;
 	for ( int h = 0; h < 2; h++ )
 	{
-		changed |= m_drag[h].Update( h == dragBy, hands[h].valid, hands[h].pos, m_settings.dragGain, m_off, now );
+		changed |= m_drag[h].Update( h == dragBy, hands[h].valid, hands[h].pos, m_settings.dragGain, m_off, now, lock, heading );
 		changed |= m_turn[h].Update( h == turnBy && hmd.valid, hands[h].valid, hands[h].pos, hmd.pos, m_off, snap );
 		if ( m_turn[h].Snapped() && m_settings.haptics && m_inputOk )
 			m_input.Pulse( h, 0.03f, 0.6f ); // one click per snap step
@@ -756,7 +766,7 @@ void App::Tick( double now, double dt )
 		goto PanelTick;
 	if ( haveInput )
 		HandleInput( in, now, dt );
-	if ( m_settings.gravity && !GestureActive() && m_gravity.Step( m_off, dt, m_settings.gravityStrength ) )
+	if ( m_settings.gravity && !GestureActive() && m_gravity.Step( m_off, dt, m_settings.gravityStrength, m_settings.lockY ) )
 		m_dirty = true; // falling (or flying after a throw)
 	if ( m_dirty )
 	{
@@ -778,7 +788,7 @@ int App::Run()
 		last = now;
 		// Every frame while the world is being moved, otherwise a relaxed poll for the buttons.
 		double wait = 0.02;
-		if ( GestureActive() || m_dirty || ( m_settings.gravity && m_gravity.Airborne( m_off, m_settings.gravityStrength ) ) )
+		if ( GestureActive() || m_dirty || ( m_settings.gravity && m_gravity.Airborne( m_off, m_settings.lockY ? 0 : m_settings.gravityStrength ) ) )
 		{
 			const double period = 1.0 / m_displayHz;
 			float since = 0;

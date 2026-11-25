@@ -47,6 +47,9 @@ Settings ParseSettings( const std::string &ini )
 		else if ( k == "gravityStrength" ) s.gravityStrength = Clamp( num, 0, kGravityMax, d.gravityStrength );
 		else if ( k == "dragLeft" ) s.dragLeft = on;
 		else if ( k == "dragRight" ) s.dragRight = on;
+		else if ( k == "lockX" ) s.lockX = on;
+		else if ( k == "lockY" ) s.lockY = on;
+		else if ( k == "lockZ" ) s.lockZ = on;
 		else if ( k == "turnLeft" ) s.turnLeft = on;
 		else if ( k == "turnRight" ) s.turnRight = on;
 		else if ( k == "leftHand" ) s.dragLeft = s.turnLeft = on; // older files: one switch per hand for both
@@ -62,13 +65,13 @@ Settings ParseSettings( const std::string &ini )
 
 std::string FormatSettings( const Settings &s )
 {
-	char buf[768];
+	char buf[1024];
 	snprintf( buf, sizeof buf,
 		"# Frame Space Settings settings\n"
 		"dragEnabled=%d\nturnEnabled=%d\ndragGain=%g\nsnapTurn=%d\nsnapDegrees=%g\ngravity=%d\ngravityStrength=%g\n"
-		"dragLeft=%d\ndragRight=%d\nturnLeft=%d\nturnRight=%d\nhaptics=%d\nresetEnabled=%d\ncheckUpdates=%d\nwelcomeDone=%d\nlanguage=%s\n",
+		"dragLeft=%d\ndragRight=%d\nlockX=%d\nlockY=%d\nlockZ=%d\nturnLeft=%d\nturnRight=%d\nhaptics=%d\nresetEnabled=%d\ncheckUpdates=%d\nwelcomeDone=%d\nlanguage=%s\n",
 		s.dragEnabled, s.turnEnabled, s.dragGain, s.snapTurn, s.snapDegrees, s.gravity, s.gravityStrength, s.dragLeft, s.dragRight,
-		s.turnLeft, s.turnRight, s.haptics, s.resetEnabled, s.checkUpdates, s.welcomeDone, s.language.c_str() );
+		s.lockX, s.lockY, s.lockZ, s.turnLeft, s.turnRight, s.haptics, s.resetEnabled, s.checkUpdates, s.welcomeDone, s.language.c_str() );
 	return buf;
 }
 

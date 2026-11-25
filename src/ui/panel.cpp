@@ -34,7 +34,7 @@ const Color kDangerHover = Color::Hex( 0xef4444 );
 struct Strings
 {
 	const char *drag, *turn, *on, *off, *reset, *moved;
-	const char *gainLabel, *gainUnit, *left, *right, *snapTurn, *snapAngle;
+	const char *gainLabel, *gainUnit, *left, *right, *snapTurn, *snapAngle, *axisLock;
 	const char *gravity, *gravityStrength, *earth, *moon, *zero;
 	const char *haptics, *reset2, *bindings;
 	const char *waiting, *noDriver, *driverBlocked, *noInput, *otherLanguage;
@@ -57,6 +57,7 @@ const Strings kJa = {
 	"右手",
 	"スナップターン",
 	"スナップ角度",
+	"軸の固定",
 	"グラビティ",
 	"重力の強さ",
 	"地球",
@@ -110,6 +111,7 @@ const Strings kEn = {
 	"Right",
 	"Snap turn",
 	"Snap angle",
+	"Axis lock",
 	"Gravity",
 	"Gravity strength",
 	"Earth",
@@ -252,6 +254,9 @@ bool ApplySettingsAct( Act a, Settings &s )
 	case Act::GainPlus: s.dragGain = step( s.dragGain, 0.25, 0.25, 4.0 ); return true;
 	case Act::DragLeft: s.dragLeft = !s.dragLeft; return true;
 	case Act::DragRight: s.dragRight = !s.dragRight; return true;
+	case Act::LockX: s.lockX = !s.lockX; return true;
+	case Act::LockY: s.lockY = !s.lockY; return true;
+	case Act::LockZ: s.lockZ = !s.lockZ; return true;
 	case Act::SnapTurn: s.snapTurn = !s.snapTurn; return true;
 	case Act::SnapMinus: s.snapDegrees = step( s.snapDegrees, -5, 5, 90 ); return true;
 	case Act::SnapPlus: s.snapDegrees = step( s.snapDegrees, 5, 5, 90 ); return true;
@@ -387,6 +392,33 @@ void Panel::Draw( Canvas &c, const PanelModel &m, Act hover, const std::string &
 		if ( live )
 			m_buttons.push_back( { x, y, w, h, act } );
 	};
+	// A check box with a short label after it, as one target; `right` is its right edge, returns its left edge.
+	auto checkbox = [&]( int right, int y, int h, const char *label, bool on, Act act, bool live ) {
+		const int box = 32, pad = 14, lw = Canvas::TextWidth( label, 24, Weight::Bold ), w = pad + box + 10 + lw + pad, x = right - w;
+		if ( live && hover == act )
+			hoverBox( x, y, w, h, 12 );
+		const double bx = x + pad, by = y + ( h - box ) / 2.0;
+		if ( on && live )
+		{
+			c.RoundRect( bx, by, box, box, 8, kAccent );
+			c.Line( bx + 8, by + 17, bx + 14, by + 23, 4, kWhite );
+			c.Line( bx + 14, by + 23, bx + 25, by + 10, 4, kWhite );
+		}
+		else
+		{
+			c.RoundRect( bx, by, box, box, 8, kOffTrack );
+			c.RoundRect( bx, by, box, box, 8, on ? kMuted : kOffEdge, 1.5 );
+			if ( on ) // checked but disabled: the mark without the accent
+			{
+				c.Line( bx + 8, by + 17, bx + 14, by + 23, 4, kMuted );
+				c.Line( bx + 14, by + 23, bx + 25, by + 10, 4, kMuted );
+			}
+		}
+		c.Text( bx + box + 10, textY( y, h, 24 ), label, 24, live ? kInk : kDim, Weight::Bold );
+		if ( live )
+			m_buttons.push_back( { x, y, w, h, act } );
+		return x;
+	};
 	auto well = [&]( int x, int y, int w, const char *label, bool live ) {
 		c.RoundRect( x, y, w, wellH, 16, kBg );
 		c.Text( x + 16, textY( y, wellH, 22 ), label, 22, live ? kInk : kDim );
@@ -473,6 +505,13 @@ void Panel::Draw( Canvas &c, const PanelModel &m, Act hover, const std::string &
 		head( x, fy, fw, descHeadH, S.drag, live, Act::Drag, S.dragDesc );
 		well( wx, r1, ww, S.gainLabel, live );
 		stepper( wx + ww - 16, r1 + 6, 52, 112, Trim( st.dragGain ) + S.gainUnit, Act::GainMinus, Act::GainPlus, live );
+		well( wx, r2, ww, S.axisLock, live );
+		{
+			int right = wx + ww - 8;
+			right = checkbox( right, r2 + 6, 52, "Z", st.lockZ, Act::LockZ, live ) - 4;
+			right = checkbox( right, r2 + 6, 52, "Y", st.lockY, Act::LockY, live ) - 4;
+			checkbox( right, r2 + 6, 52, "X", st.lockX, Act::LockX, live );
+		}
 		hands( wx, r3, ww, st.dragLeft, st.dragRight, Act::DragLeft, Act::DragRight, live ); // same line as space turn's
 	}
 	{

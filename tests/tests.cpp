@@ -57,6 +57,38 @@ static void TestMath()
 	CHECK( OnlyHeightDiffers( SomePose( 0.3, { 1, 0.066, 2 } ), SomePose( 0.3, { 1, 0, 2 } ) ) );
 	CHECK( !OnlyHeightDiffers( SomePose( 0.3, { 1.1, 0.066, 2 } ), SomePose( 0.3, { 1, 0, 2 } ) ) ); // a recenter moves x/z too
 	CHECK( !OnlyHeightDiffers( SomePose( 0.3, { 1, 0, 2 } ), SomePose( 0.3, { 1, 0, 2 } ) ) );
+	{
+		// Heading: forward is -Z. Turning changes it; pitching, rolling and looking straight down do not.
+		auto pose = []( double yaw, double pitch, double roll ) {
+			// R = Ry(yaw) * Rx(pitch) * Rz(roll); pitch > 0 looks up
+			const double cy = std::cos( yaw ), sy = std::sin( yaw ), cp = std::cos( pitch ), sp = std::sin( pitch ), cr = std::cos( roll ),
+						 sr = std::sin( roll );
+			const double ry[3][3] = { { cy, 0, sy }, { 0, 1, 0 }, { -sy, 0, cy } };
+			const double rx[3][3] = { { 1, 0, 0 }, { 0, cp, -sp }, { 0, sp, cp } };
+			const double rz[3][3] = { { cr, -sr, 0 }, { sr, cr, 0 }, { 0, 0, 1 } };
+			double a[3][3] = {}, r[3][3] = {};
+			for ( int i = 0; i < 3; i++ )
+				for ( int j = 0; j < 3; j++ )
+					for ( int k = 0; k < 3; k++ )
+						a[i][j] += ry[i][k] * rx[k][j];
+			for ( int i = 0; i < 3; i++ )
+				for ( int j = 0; j < 3; j++ )
+					for ( int k = 0; k < 3; k++ )
+						r[i][j] += a[i][k] * rz[k][j];
+			Mat34 m;
+			for ( int i = 0; i < 3; i++ )
+				for ( int j = 0; j < 3; j++ )
+					m.m[i][j] = r[i][j];
+			return m;
+		};
+		const double fwd = M_PI; // yaw 0 faces -Z: atan2(0, -1)
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0, 0, 0 ) ) - fwd ) ) < 1e-9 );
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0.6, 0, 0 ) ) - ( fwd + 0.6 ) ) ) < 1e-9 );
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0.6, 0, 1.2 ) ) - ( fwd + 0.6 ) ) ) < 1e-9 );  // head on its side
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0.6, -0.9, 0 ) ) - ( fwd + 0.6 ) ) ) < 1e-9 ); // looking down
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0.6, -M_PI / 2, 0 ) ) - ( fwd + 0.6 ) ) ) < 1e-9 ); // straight down
+		CHECK( std::fabs( WrapAngle( HeadingOf( pose( 0.6, M_PI / 2, 0 ) ) - ( fwd + 0.6 ) ) ) < 1e-9 );  // straight up
+	}
 }
 
 static void TestGestures()
@@ -84,6 +116,49 @@ static void TestGestures()
 		d.Update( true, true, { 0, 1, 0 }, 1, o, 0.2 );
 		d.Update( true, false, { 0, 1, 0 }, 1, o, 0.21 );
 		CHECK( !d.TakeRelease( v ) );
+	}
+	{
+		// Axis lock: X and Z locked moves only up and down, whichever way the head faced; so does the momentum.
+		AxisLock xz;
+		xz.x = xz.z = true;
+		for ( double heading : { 0.0, 0.7, M_PI / 2, -2.5 } )
+		{
+			Offset o;
+			DragGesture d;
+			for ( int i = 0; i <= 10; i++ )
+				d.Update( true, true, { 0.03 * i, 1 + 0.02 * i, -0.01 * i }, 2, o, 0.01 * i, xz, heading );
+			CHECK( std::fabs( o.t.x ) < 1e-12 && std::fabs( o.t.z ) < 1e-12 && std::fabs( o.t.y - 0.4 ) < 1e-12 );
+			d.Update( false, true, { 0.3, 1.2, -0.1 }, 2, o, 0.11, xz, heading );
+			Vec3 v;
+			CHECK( d.TakeRelease( v ) && std::fabs( v.x ) < 1e-9 && std::fabs( v.z ) < 1e-9 && v.y > 3 );
+		}
+		// Only X locked: moving along the head's forward goes through, across it does not.
+		AxisLock x;
+		x.x = true;
+		const double h = 0.9; // facing (sin h, 0, cos h)
+		const Vec3 fwd{ std::sin( h ), 0, std::cos( h ) }, across{ std::cos( h ), 0, -std::sin( h ) };
+		Offset o;
+		DragGesture d;
+		d.Update( true, true, { 0, 1, 0 }, 1, o, 0, x, h );
+		d.Update( true, true, fwd * 0.5 + across * 0.3 + Vec3{ 0, 1, 0 }, 1, o, 0.01, x, h );
+		CHECK( std::fabs( o.t.x - fwd.x * 0.5 ) < 1e-12 && std::fabs( o.t.z - fwd.z * 0.5 ) < 1e-12 );
+		// The heading is taken at the press: turning the head while holding does not move the axes.
+		d.Update( true, true, fwd * 0.5 + across * 0.6 + Vec3{ 0, 1, 0 }, 1, o, 0.02, x, h + 1.0 );
+		CHECK( std::fabs( o.t.x - fwd.x * 0.5 ) < 1e-12 && std::fabs( o.t.z - fwd.z * 0.5 ) < 1e-12 );
+		// A new press takes the new heading.
+		d.Update( false, true, {}, 1, o, 0.03, x, h + 1.0 );
+		Offset o2;
+		d.Update( true, true, { 0, 1, 0 }, 1, o2, 0.04, x, M_PI / 2 ); // facing +x: x across is the world's z
+		d.Update( true, true, { 0.2, 1, 0.3 }, 1, o2, 0.05, x, M_PI / 2 );
+		CHECK( std::fabs( o2.t.x - 0.2 ) < 1e-12 && std::fabs( o2.t.z ) < 1e-12 );
+		// Y locked: no height change.
+		AxisLock y;
+		y.y = true;
+		Offset o3;
+		DragGesture dy;
+		dy.Update( true, true, { 0, 1, 0 }, 1, o3, 0, y, 0 );
+		dy.Update( true, true, { 0.1, 1.5, 0.2 }, 1, o3, 0.01, y, 0 );
+		CHECK( o3.t.y == 0 && std::fabs( o3.t.x - 0.1 ) < 1e-12 && std::fabs( o3.t.z - 0.2 ) < 1e-12 );
 	}
 	{
 		// Snap turn: nothing until the hand has swung a full step, then exactly one step.
@@ -117,6 +192,16 @@ static void TestGestures()
 		while ( z.Step( w, 0.01, 0 ) && steps < 2000 )
 			steps++;
 		CHECK( steps < 2000 && w.t.y < -0.5 && !z.Airborne( w, 0 ) && z.Airborne( w, 9.8 ) );
+
+		// Y locked: up in the air it neither falls nor rises; a sideways throw drifts and stops.
+		Offset hold;
+		hold.Translate( { 0, -1.0, 0 } );
+		GravityMotion hg;
+		hg.Launch( { 1, -3, 0 } );
+		steps = 0;
+		while ( hg.Step( hold, 0.01, 9.8, true ) && steps < 2000 )
+			steps++;
+		CHECK( steps < 2000 && hold.t.y == -1.0 && hold.t.x > 0.5 && !hg.Airborne( hold, 0 ) );
 	}
 
 	Offset t;
@@ -136,6 +221,9 @@ static void TestConfig()
 	CHECK( s.gravityStrength == 9.8 ); // "abc" is not a number: the default
 	CHECK( ParseSettings( "gravityStrength=0" ).gravityStrength == 0 && ParseSettings( "gravityStrength=99" ).gravityStrength == kGravityMax );
 	const Settings r = ParseSettings( FormatSettings( s ) );
+	CHECK( !s.lockX && !s.lockY && !s.lockZ ); // off unless set
+	const Settings l = ParseSettings( FormatSettings( ParseSettings( "lockX=1\nlockZ=1\n" ) ) );
+	CHECK( l.lockX && !l.lockY && l.lockZ );
 	CHECK( r.snapDegrees == s.snapDegrees && r.dragGain == s.dragGain && r.dragLeft == s.dragLeft && r.turnRight == s.turnRight &&
 		   r.gravity == s.gravity && r.gravityStrength == s.gravityStrength && r.turnEnabled == s.turnEnabled );
 }

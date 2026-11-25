@@ -13,6 +13,7 @@ struct Settings
 	bool gravity = false;      // momentum after a drag, falling back to the floor
 	double gravityStrength = 9.8; // m/s^2, 0 = weightless (the throw drifts and slows down)
 	bool dragLeft = true, dragRight = true; // which hands space drag listens to
+	bool lockX = false, lockY = false, lockZ = false; // space drag does not move along these (X/Z: as the head faced)
 	bool turnLeft = true, turnRight = true; // which hands space turn listens to
 	bool haptics = true;
 	bool checkUpdates = true;  // ask GitHub for a newer release now and then

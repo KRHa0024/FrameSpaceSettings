@@ -16,7 +16,9 @@ This app is vibe coded.
 ## Features
 
 - **Space drag**: hold the bound button and move your hand to move yourself. Multiplier from 0.25x to 4x, left and
-  right hand can be switched off separately.
+  right hand can be switched off separately. "Axis lock" stops movement along X, Y or Z (lock X and Z to move only up
+  and down). Y is always up and down; X and Z are left/right and forward/back from where you faced when you pressed the
+  button.
 - **Space turn**: hold the bound button and swing your hand around your head to turn in place. Smooth, or snap turn
   in steps of 5° to 90° with the same gesture. Left and right hand can be switched off separately.
 - **Gravity**: after you let go, your momentum carries on and gravity brings you down to the floor. Presets for

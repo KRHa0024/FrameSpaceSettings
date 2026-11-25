@@ -46,6 +46,15 @@ double YawOf( const Mat34 &a )
 	return std::atan2( a.m[0][2], a.m[0][0] );
 }
 
+double HeadingOf( const Mat34 &a )
+{
+	// forward f = -Z column, up u = Y column. Looking down, the top of the head tips forward (and back when looking up),
+	// so f - u * f.y stays horizontal-forward at every pitch.
+	const double fx = -a.m[0][2], fy = -a.m[1][2], fz = -a.m[2][2];
+	const double ux = a.m[0][1], uz = a.m[2][1];
+	return std::atan2( fx - ux * fy, fz - uz * fy );
+}
+
 Vec3 RotateY( Vec3 v, double yaw )
 {
 	const double c = std::cos( yaw ), s = std::sin( yaw );
