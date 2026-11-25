@@ -11,19 +11,19 @@ you moved to stays where it is.
 
 This app is vibe coded.
 
-![The settings panel in English: Space drag, Space turn, Gravity and Position reset cards on the left, and a Bindings card on the right showing both Steam Frame controllers with numbered markers on the bound buttons](docs/panel-en.png)
+![The settings panel in English: Space drag (with Axis lock on X and Z), Space turn, Gravity and Position reset cards on the left, and a Bindings card on the right showing both Steam Frame controllers with numbered markers on the bound buttons](docs/panel-en.png)
 
 ## Features
 
 - **Space drag**: hold the bound button and move your hand to move yourself. Multiplier from 0.25x to 4x, left and
   right hand can be switched off separately. "Axis lock" stops movement along X, Y or Z (lock X and Z to move only up
   and down). Y is always up and down; X and Z are left/right and forward/back from where you faced when you pressed the
-  button.
+  button. No axis is locked at first.
 - **Space turn**: hold the bound button and swing your hand around your head to turn in place. Smooth, or snap turn
   in steps of 5° to 90° with the same gesture. Left and right hand can be switched off separately.
 - **Gravity**: after you let go, your momentum carries on and gravity brings you down to the floor. Presets for
   Earth, Moon and zero-G, fine steps with the -/+ buttons, or any value from 0 to 50 m/s² typed on the SteamVR
-  keyboard.
+  keyboard. With axis lock, no momentum carries on along a locked axis, and you do not fall while Y is locked.
 - **Position reset**: a controller button (can be turned off) and the "Back to original" button in the panel undo all
   movement and turning.
 - **Bindings view**: the panel shows the Steam Frame controllers with every button bound to these features, read live
