@@ -137,25 +137,40 @@ int Install()
 		fprintf( stderr, "could not write %s\n", ManifestPath().c_str() );
 		return 1;
 	}
+	// SteamVR only takes an application whose binary is there: on a first install the program goes in before the
+	// registration (an update keeps replacing it last, so a failed update leaves the old one working).
+	if ( !files::Exists( BinPath() ) && !Copy( self, BinPath(), true ) )
+	{
+		fprintf( stderr, "could not copy the program to %s\n", BinPath().c_str() );
+		return 1;
+	}
 	if ( !InitUtility() )
 		return 1;
 	// Start with SteamVR on the first install only; an update (or installing again) keeps the user's choice.
 	const bool firstInstall = !vr::VRApplications()->IsApplicationInstalled( kAppKey );
-	vr::EVRApplicationError ae = vr::VRApplications()->AddApplicationManifest( ManifestPath().c_str(), false );
+	const vr::EVRApplicationError ae = vr::VRApplications()->AddApplicationManifest( ManifestPath().c_str(), false );
+	vr::EVRApplicationError autoErr = vr::VRApplicationError_None;
 	if ( ae == vr::VRApplicationError_None && firstInstall )
-		ae = vr::VRApplications()->SetApplicationAutoLaunch( kAppKey, true );
+		autoErr = vr::VRApplications()->SetApplicationAutoLaunch( kAppKey, true );
+	const std::string aeName = vr::VRApplications()->GetApplicationsErrorNameFromEnum( ae );
+	const std::string autoName = vr::VRApplications()->GetApplicationsErrorNameFromEnum( autoErr );
 	vr::VR_Shutdown();
 	if ( ae != vr::VRApplicationError_None )
 	{
-		fprintf( stderr, "SteamVR refused the registration (error %d)\n", (int)ae );
+		fprintf( stderr, "SteamVR refused the registration of %s (error %d, %s)\n", ManifestPath().c_str(), (int)ae, aeName.c_str() );
 		return 1;
 	}
+	// Not starting with SteamVR is no reason to fail the install: it can be turned on in the panel.
+	if ( autoErr != vr::VRApplicationError_None )
+		fprintf( stderr,
+			"could not make SteamVR start it (error %d, %s); start %s once and turn on \"Start with SteamVR\" in its panel\n",
+			(int)autoErr, autoName.c_str(), BinPath().c_str() );
 	if ( !Copy( self, BinPath(), true ) )
 	{
 		fprintf( stderr, "could not copy the program to %s\n", BinPath().c_str() );
 		return 1;
 	}
-	printf( "installed %s%s\n", BinPath().c_str(), firstInstall ? "; SteamVR starts it from now on" : "" );
+	printf( "installed %s%s\n", BinPath().c_str(), firstInstall && autoErr == vr::VRApplicationError_None ? "; SteamVR starts it from now on" : "" );
 	return 0;
 }
 
