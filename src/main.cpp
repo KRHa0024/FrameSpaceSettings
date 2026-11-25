@@ -26,6 +26,11 @@ void OnSignal( int )
 	App::s_quit = true;
 }
 
+void OnShow( int )
+{
+	App::s_show = true;
+}
+
 std::string SelfPath()
 {
 	char exe[4096];
@@ -36,6 +41,13 @@ std::string SelfPath()
 std::string BinPath() { return files::Home() + "/.local/bin/frame-space-settings"; }
 std::string ManifestPath() { return files::DataDir() + "/frame-space-settings.vrmanifest"; }
 std::string DriverDir() { return files::DataDir() + "/driver/framespacesettings"; }
+// The entry SteamVR's dashboard lists under its + button, as other Frame tools do.
+std::string DesktopPath() { return files::Home() + "/.local/share/applications/frame-space-settings.desktop"; }
+std::string IconPath( int size )
+{
+	return files::Home() + "/.local/share/icons/hicolor/" + std::to_string( size ) + "x" + std::to_string( size ) + "/apps/frame-space-settings.png";
+}
+constexpr int kIconSizes[] = { 128, 256 };
 constexpr const char *kVrPathReg = "/opt/steamvr/bin/vrpathreg.sh";
 
 bool Copy( const std::string &from, const std::string &to, bool executable );
@@ -75,12 +87,58 @@ bool Copy( const std::string &from, const std::string &to, bool executable )
 	return !executable || chmod( to.c_str(), 0755 ) == 0;
 }
 
-// One running copy only: two would fight over the driver's move.
+std::string LockPath() { return files::StateDir() + "/lock"; }
+
+// One running copy only: two would fight over the driver's move. The holder's pid goes in the file, for ShowRunning.
+// SIGUSR1 must be handled before the pid is there: its default action ends the process.
 bool LockSingleInstance()
 {
 	files::MakeDirs( files::StateDir() );
-	const int fd = open( ( files::StateDir() + "/lock" ).c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644 );
-	return fd >= 0 && flock( fd, LOCK_EX | LOCK_NB ) == 0; // fd stays open for the life of the process
+	const int fd = open( LockPath().c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644 );
+	if ( fd < 0 || flock( fd, LOCK_EX | LOCK_NB ) != 0 ) // fd stays open for the life of the process
+		return false;
+	const std::string pid = std::to_string( getpid() ) + "\n";
+	if ( ftruncate( fd, 0 ) != 0 || pwrite( fd, pid.data(), pid.size(), 0 ) != (ssize_t)pid.size() )
+		logging::Printf( "could not write the pid to %s", LockPath().c_str() );
+	return true;
+}
+
+// Launched again (from the dashboard's + button) while running: the running copy opens its panel.
+bool ShowRunning()
+{
+	std::string text;
+	if ( !files::ReadFile( LockPath(), text ) )
+		return false;
+	const pid_t pid = (pid_t)atoi( text.c_str() );
+	std::string comm; // only signal our own program: a stale pid may belong to anything by now
+	if ( pid <= 1 || !files::ReadFile( "/proc/" + std::to_string( pid ) + "/comm", comm ) || comm.rfind( "frame-space-set", 0 ) != 0 )
+		return false;
+	return kill( pid, SIGUSR1 ) == 0;
+}
+
+// The dashboard's + button lists the desktop entries. Exec is absolute: Steam may start it without ~/.local/bin in PATH.
+bool InstallDesktopEntry()
+{
+	for ( const int size : kIconSizes )
+	{
+		const std::string path = IconPath( size );
+		files::MakeDirs( path.substr( 0, path.rfind( '/' ) ) );
+		Canvas icon( size, size );
+		Panel::DrawIcon( icon );
+		if ( !icon.WritePng( path ) )
+			return false;
+	}
+	files::MakeDirs( DesktopPath().substr( 0, DesktopPath().rfind( '/' ) ) );
+	const std::string entry = "[Desktop Entry]\n"
+							  "Type=Application\n"
+							  "Name=Frame Space Settings\n"
+							  "Comment=Space drag and space turn. Launch again while running to open the panel.\n"
+							  "Comment[ja]=空間をドラッグして移動・回転。常駐中にもう一度起動するとパネルを開く\n"
+							  "Exec=\"" + BinPath() + "\" --show\n"
+							  "Icon=frame-space-settings\n"
+							  "Terminal=false\n"
+							  "Categories=Utility;\n";
+	return files::WriteFileAtomic( DesktopPath(), entry );
 }
 
 bool InitUtility()
@@ -170,6 +228,9 @@ int Install()
 		fprintf( stderr, "could not copy the program to %s\n", BinPath().c_str() );
 		return 1;
 	}
+	// Last, like the program: an entry the + button lists must start something.
+	if ( !InstallDesktopEntry() )
+		fprintf( stderr, "could not add %s: the dashboard's + button will not list it\n", DesktopPath().c_str() );
 	printf( "installed %s%s\n", BinPath().c_str(), firstInstall && autoErr == vr::VRApplicationError_None ? "; SteamVR starts it from now on" : "" );
 	return 0;
 }
@@ -189,7 +250,9 @@ int Uninstall()
 			fprintf( stderr, "vrpathreg could not unregister the driver; remove it with: %s removedriver %s\n", kVrPathReg, DriverDir().c_str() );
 	}
 	// A driver file vrserver has loaded stays valid after unlink until SteamVR restarts.
-	for ( const std::string &f : { BinPath(), ManifestPath(), files::DataDir() + "/action_manifest.json",
+	for ( const int size : kIconSizes )
+		unlink( IconPath( size ).c_str() );
+	for ( const std::string &f : { DesktopPath(), BinPath(), ManifestPath(), files::DataDir() + "/action_manifest.json",
 			  files::DataDir() + "/bindings/frame_controller.json", DriverDir() + "/bin/linuxarm64/driver_framespacesettings.so",
 			  DriverDir() + "/driver.vrdrivermanifest" } )
 		unlink( f.c_str() );
@@ -201,6 +264,7 @@ void Usage()
 {
 	printf( "frame-space-settings - space drag and space turn for the Steam Frame\n\n"
 			"  (no arguments)   run (normally started by SteamVR)\n"
+			"  --show           run and open the panel in the dashboard; if already running, open its panel\n"
 			"  --screenshot FILE.png [ja|en]  render the panel with sample data (no SteamVR)\n"
 			"  --install        copy to ~/.local and register with SteamVR (starts with SteamVR)\n"
 			"  --version        print the version\n"
@@ -277,20 +341,25 @@ int main( int argc, char **argv )
 		icon.WritePng( std::string( argv[2] ) + ".icon.png" );
 		return c.WritePng( argv[2] ) ? 0 : 1;
 	}
-	if ( !arg.empty() )
+	const bool show = arg == "--show";
+	if ( !arg.empty() && !show )
 	{
 		Usage();
 		return 2;
 	}
 
-	if ( !LockSingleInstance() )
-	{
-		fprintf( stderr, "frame-space-settings is already running\n" );
-		return 1;
-	}
 	signal( SIGINT, OnSignal );
 	signal( SIGTERM, OnSignal );
 	signal( SIGHUP, OnSignal );
+	signal( SIGUSR1, OnShow );
+	if ( !LockSingleInstance() )
+	{
+		if ( show && ShowRunning() )
+			return 0;
+		fprintf( stderr, "frame-space-settings is already running\n" );
+		return 1;
+	}
+	App::s_show = show;
 	logging::Open( files::StateDir() + "/frame-space-settings.log" );
 
 	int rc = 0;
@@ -309,6 +378,7 @@ int main( int argc, char **argv )
 	{
 		const std::string bin = BinPath();
 		char *const args[] = { const_cast<char *>( bin.c_str() ), nullptr };
+		signal( SIGUSR1, SIG_IGN ); // kept across exec, until the new program handles it: the lock file still has this pid
 		execv( bin.c_str(), args ); // same process: SteamVR keeps it as its auto-started app; the lock fd is CLOEXEC
 		logging::Printf( "could not start the updated program: %s", strerror( errno ) );
 		return 1;

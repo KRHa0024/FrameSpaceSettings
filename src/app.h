@@ -14,6 +14,7 @@
 #include <string>
 
 constexpr const char *kAppKey = "dev.krha.framespacesettings";
+constexpr const char *kPanelKey = "dev.krha.framespacesettings.panel";
 // User values of the SteamVR keyboard: which number is being typed.
 constexpr uint64_t kKeyboardGravity = 1;
 
@@ -22,6 +23,7 @@ class App
 public:
 	static std::atomic<bool> s_quit;
 	static std::atomic<bool> s_restart; // after Run returns: start the (updated) installed program in this process
+	static std::atomic<bool> s_show;    // open the panel in the dashboard (--show, or launched again from the dashboard)
 
 	~App();
 	bool Init( std::string &error );

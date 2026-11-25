@@ -48,6 +48,8 @@ This app is vibe coded.
 
 "Frame Space Settings" appears as a tab in the SteamVR dashboard and starts with SteamVR from then on. No root access
 is needed; everything goes into your home directory.
+It is also listed under the dashboard's + button: launch it from there to start it, or to open its panel while it
+runs.
 
 ## Updates
 

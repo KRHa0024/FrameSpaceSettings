@@ -23,6 +23,7 @@ using namespace vr;
 
 std::atomic<bool> App::s_quit{ false };
 std::atomic<bool> App::s_restart{ false };
+std::atomic<bool> App::s_show{ false };
 
 namespace
 {
@@ -233,7 +234,7 @@ bool App::Init( std::string &error )
 	{
 		Canvas icon( 128, 128 );
 		Panel::DrawIcon( icon );
-		m_overlayOk = m_overlay.Init( "dev.krha.framespacesettings.panel", "Frame Space Settings", kPanelW, kPanelH, icon.Pixels(), 128 );
+		m_overlayOk = m_overlay.Init( kPanelKey, "Frame Space Settings", kPanelW, kPanelH, icon.Pixels(), 128 );
 		Fonts::Get().Release(); // loaded again when the panel is opened
 		malloc_trim( 0 );
 		if ( !m_overlayOk )
@@ -729,6 +730,11 @@ void App::Tick( double now, double dt )
 		s_restart = true;
 		s_quit = true;
 		return;
+	}
+	if ( m_overlayOk && s_show.exchange( false ) )
+	{
+		logging::Printf( "opening the panel in the dashboard" );
+		VROverlay()->ShowDashboard( kPanelKey );
 	}
 	if ( m_overlayOk )
 	{
